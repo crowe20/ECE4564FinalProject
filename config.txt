@@ -1,0 +1,9 @@
+#THIS IS THE CONFIGURATION FILE FORMAT
+Path to Archive Video Directory
+NON ALERTING TIMES: [day of the week,start time,end time],[day of the week,start time,end time],....
+Email address1, name
+Email address2, name
+.
+.
+.
+
