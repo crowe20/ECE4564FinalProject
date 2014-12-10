@@ -1,0 +1,4 @@
+text file contents
+line2
+line3
+end
