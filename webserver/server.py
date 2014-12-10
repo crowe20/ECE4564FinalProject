@@ -38,7 +38,7 @@ class FileListPage(Resource):
         body+= '<a href="clock">clock</a><br/>'
         body+= '<a href="/">home</a><br/>'
         return '<html><body>Index Page<br/>%s' \
-                '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="files\\vid.h264">' \
+                '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="files/vid.h264">' \
                 "<a href='javascript:;' onclick='document.video1.play()'>Play</a>" \
                 "<a href='javascript:;' onclick='document.video1.pause()'>Pause</a>" \
                 "<a href='javascript:;' onclick='document.video1.stop()'>Stop</a>" \
