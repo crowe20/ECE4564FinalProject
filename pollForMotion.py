@@ -1,5 +1,5 @@
 ##########################################################################
-#
+#test
 #Constantly poll a gpio pin, waiting for it to go high.
 #When it does, send a message via amqp saying motion is detected
 #
