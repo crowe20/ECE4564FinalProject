@@ -1,0 +1,5 @@
+/home/pi/ECE4564/FinalProj/VideoArchive/
+NON ALERTING TIMES: [monday,9:00 AM,5:00 PM],[tuesday,3:00pm,6:00pm],[wednesday,12:30 PM,1:00 PM]
+crowe20@vt.edu, Chris Rowe
+#czauski@g.mail.vt.edu, Tad Czauski this is Tad's email and we will probably need it for the final demo
+
