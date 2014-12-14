@@ -7,19 +7,30 @@ import socket
 import sys
 import readline
 import smtplib
+import os
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
+
+configName = 'exampleConfig.txt'	#configuration file name
 sender = 'ece4564finalproj@gmail.com'
 senderUserName = 'ece4564finalproj'
 senderPassword = 'finalproj'
+
 #setup log file for current execution
 InitialTime = time.time()
 InitialTimeString = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.log'
 
-LOGFORMAT= ('%(levelname)s,%(asctime)s,%(name)s,%(funcName)s,'
-		'%(lineno)s,%(message)s')
+LOGFORMAT= ('%(levelname)s,%(asctime)s,%(funcName)s,%(message)s')
 
 LOGGER = logging.getLogger(__name__)
-nodesIP = {}
+
+nodesIP = {}	
 nodesUPDATETIME = {}
+receivers = []		#list of email recipients
+ArchiveFilePath = ''
+alertTimes = []
+
 class AsynchConsumer(object):
 
 	EXCHANGENAME = 'chat_room' #variable
@@ -143,7 +154,7 @@ class AsynchConsumer(object):
 		#output(body)
 		msg = body.split(',')
 		if( len(msg)!=3):
-			output('Bad Message')
+			print 'Bad Message'
 		else:
 			name = msg[0]
 			ipaddr = msg[1]
@@ -160,20 +171,39 @@ class AsynchConsumer(object):
 					nodesIP[name] = ipaddr
 					
 			elif status == "Motion":
+				LOGGER.info('Motion alert received from name = %s',name)
 				#send email alert
-				receivers = ['czauski@g.mail.vt.edu']
-				alert = """From: NETWORK SECURITY <{0}>
-To: SYSTEM USER <{1}>
-Subject: Motion Detected
+				if not inRange():
+					configFile = open(configName,'r')
+					for i in range(3):
+					#skip to lines of file needed
+						configFile.readline()
+					receivers = []
+					names = []
+					for entry in configFile:
+						if entry[0] == '#':
+							pass
+						else:
+							entry = entry.split(',')
+							receivers.append(entry[0].strip())
+							names.append(entry[1])
+					configFile.close()
+					#print receivers
+					#print names
+					msg = MIMEMultipart()
+					msg['From'] = formataddr(('SYSTEM ADMINISTRATOR',sender))
+					for i in range(len(names)):
+						msg['To'] = formataddr((names[i],receivers[i]))
+					msg['Subject'] = "MOTION ALERT"
+					text = "motion occured at this node: {0}".format(name)
+					body = MIMEText(text,'plain')
+					msg.attach(body)
+					server = smtplib.SMTP('smtp.gmail.com:587')
+					server.starttls()
+					server.login(senderUserName,senderPassword)
+					server.sendmail(sender, receivers, msg.as_string())
+					server.quit()
 
-Motion was detected at node {2}
-""".format(sender,receivers[0], name)
-				output(alert)
-				server = smtplib.SMTP('smtp.gmail.com:587')
-				server.starttls()
-				server.login(senderUserName,senderPassword)
-				server.sendmail(sender, receivers, alert)
-				server.quit()
 		self.acknowledge_message(basic_deliver.delivery_tag)
 	
 	def on_cancelok(self,unused_frame):
@@ -229,13 +259,6 @@ def asynchAMQP():
 	except KeyboardInterrupt:
 		example.stop()
 
-def output(msg):
-
-	sys.stdout.write('\r'+' '*(len(readline.get_line_buffer())+2)+'\r')
-	print msg
-	sys.stdout.write('> '+readline.get_line_buffer())
-	sys.stdout.flush()
-
 def timer():
 	i=0
 	while True:
@@ -243,7 +266,7 @@ def timer():
 		#LOGGER.info('%s',i)
 		t = time.time()
 		#TimeString = datetime.datetime.fromtimestamp(t).strftime('%Y-%m-%d_%H%M%S')
-		#output(TimeString)
+		#print(TimeString)
 		names = nodesUPDATETIME.keys()
 		for name in names:
 			lastUpdate = nodesUPDATETIME[name]
@@ -254,8 +277,9 @@ def timer():
 
 def sockets(data):
 	if data:
-		host = "127.0.0.1"
+		host = "node1.local"
 		port = 50000
+		#filename ="/home/pi/ECE4564/FinalProj/testCode/webserver/files/node/{1}/"
 		try:
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			sock.connect((host,port))
@@ -266,14 +290,88 @@ def sockets(data):
 			LOGGER.info("Local error: "+local_exception.message)
 			print "Local error: "+local_exception.message
 
-if __name__=='__main__':
-	print InitialTimeString
+
+def reloadConfig():
+	configFile = open(configName, 'r')
+	configFile.readline()
+	ArchiveFilePath = configFile.readline().strip()
+	Times = configFile.readline().split(';')[1].strip().split('+')	
+	configFile.close()
+	
+	#print Times
+	global alertTimes
+	alertTimes=[]
+	for time in Times:
+		time = time[1:-1].split(',')
+		alertTimes.append(time)
+	 
+	#	print time
+	#test = open(os.path.join(ArchiveFilePath,'test.txt'),'w')
+	#test.write('test')
+
+def inRange():
+	#print 'inRangeFunctionCalled'
+	retVal = False
+	day = datetime.datetime.now().strftime('%A').lower()
+	hour = int(datetime.datetime.now().hour)
+#	hour = 22
+	min = int(datetime.datetime.now().minute)
+#	min = 00
+	#print "entering loop"
+	global alertTimes
+	#print alertTimes
+	for time in alertTimes:
+	#	print time
+		testDay = time[0].lower()
+		startTime = datetime.datetime.strptime(time[1].strip(),'%H:%M')
+		endTime = datetime.datetime.strptime(time[2].strip(),'%H:%M')
+		
+		startTimehr = int(startTime.strftime('%H'))
+		startTimeMin = int(startTime.strftime('%M'))
+		
+		endTimehr = int(endTime.strftime('%H'))
+		endTimeMin = int(endTime.strftime('%M'))
+#		print day, testDay
+#		print hour, min
+#		print startTimehr, startTimeMin
+#		print endTimehr, endTimeMin
+		if day == testDay:
+			
+			if startTimehr == hour and startTimeMin <= min:
+				if endTimehr == hour and endTimeMin >= min:
+					retVal = True
+					break
+				elif endTimehr > hour:
+					retVal = True
+					break
+			if startTimehr < hour and endTimehr > hour:
+				retVal = True
+				break
+			if endTimehr == hour and endTimeMin >= min:
+				if startTimehr == hour and startTimeMin <= min:
+					retVal = True
+					break 	
+				elif startTimehr < hour:
+					retVal = True
+					break
+	return retVal
+
+def main():
+
+	print "configuring security system"
+	reloadConfig()
+	print "done Configuring"
+#	test = inRange()
+#	if test:
+#		print "inRange"
 	logging.basicConfig(filename = InitialTimeString, level=logging.INFO,format=LOGFORMAT)
 	t1 = threading.Thread(target=asynchAMQP)
 	t1.start()
-	t2 = threading.Thread(target=timer)
-	t2.start()
-	#asynchAMQP()
-	while True:
-		dataIn = raw_input("> ")
-		sockets(dataIn)
+#	t2 = threading.Thread(target=timer)
+#	t2.start()
+
+	
+
+if __name__=='__main__':
+
+	main()
