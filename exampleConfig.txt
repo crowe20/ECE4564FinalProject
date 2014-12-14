@@ -1,5 +1,6 @@
-/home/pi/ECE4564/FinalProj/VideoArchive/
-NON ALERTING TIMES: [monday,9:00 AM,5:00 PM],[tuesday,3:00pm,6:00pm],[wednesday,12:30 PM,1:00 PM]
+ExtIP: 71.62.125.147
+webserver/files/
+NON ALERTING TIMES; [monday,23:02,23:59]+[saturday,20:00,21:59]+[sunday,22:01,23:59]
 crowe20@vt.edu, Chris Rowe
-#czauski@g.mail.vt.edu, Tad Czauski this is Tad's email and we will probably need it for the final demo
-
+rowe.chris20@gmail.com, Chris Rowe
+#czauski@g.mail.vt.edu, Tad Czauski, this is Tad's email and we will probably need it for the final demo
