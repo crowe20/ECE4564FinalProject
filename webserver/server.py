@@ -10,6 +10,10 @@ import os
 
 base_path = "files"
 
+test_host = "rtsp://localhost:"
+test_port = "25700"
+test_file = "/stream25700.h264"
+
 class ClockPage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -37,13 +41,12 @@ class FileListPage(Resource):
             body+= "<a href="+request.uri+pageName+">"+file+ "</a><br/>"
         body+= '<a href="clock">clock</a><br/>'
         body+= '<a href="/">home</a><br/>'
-        return '<html><body>Index Page<br/>%s' \
-                '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="files/vid.h264">' \
-                "<a href='javascript:;' onclick='document.video1.play()'>Play</a>" \
-                "<a href='javascript:;' onclick='document.video1.pause()'>Pause</a>" \
-                "<a href='javascript:;' onclick='document.video1.stop()'>Stop</a>" \
-                "<a href='javascript:;' onclick='document.video1.fullscreen()'>Fullscreen</a>" \
-                '</body></html>' % (body,)
+
+        old =  '<html><body>Index Page<br/>%s' % (body,)
+        old += '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="'+test_host+test_port+test_file+'"/>' \
+                '</body></html>'
+
+        return old
 
 class BasePage(Resource):
     isLeaf = True
@@ -61,7 +64,7 @@ class BasePage(Resource):
         else:
             print "FilePage"
             print request.uri
-            return static.File("files/vid.h264").render_GET(request)
+            return static.File("files/test3.ogg").render_GET(request)
 
 def server_main():
     resource = BasePage()
