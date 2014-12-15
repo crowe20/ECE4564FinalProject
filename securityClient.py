@@ -8,6 +8,7 @@ import sys
 import readline
 import smtplib
 import os
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -27,9 +28,13 @@ LOGGER = logging.getLogger(__name__)
 
 nodesIP = {}	
 nodesUPDATETIME = {}
+nodesThread = {}
 receivers = []		#list of email recipients
 ArchiveFilePath = ''
 alertTimes = []
+
+mutexNodeIP = Lock()
+mutexNodeThread = Lock()
 
 class AsynchConsumer(object):
 
@@ -160,16 +165,7 @@ class AsynchConsumer(object):
 			ipaddr = msg[1]
 			status = msg[2]
 			if status == "Online":
-				nodesUPDATETIME[name] = time.time()
-				if name in nodesIP:
-					oldIp = nodesIP[name]
-					if oldIp != ipaddr:
-						LOGGER.info('Node %s updated its IP address from %s to %s',name,oldIp,ipaddr)
-						nodesIP[name] = ipaddr
-				else:
-					LOGGER.info('New Node detected, name = %s, IP = %s',name, ipaddr)
-					nodesIP[name] = ipaddr
-					
+				changeNode(name, ipaddr)	
 			elif status == "Motion":
 				LOGGER.info('Motion alert received from name = %s',name)
 				#send email alert
@@ -263,28 +259,30 @@ def timer():
 	i=0
 	while True:
 		time.sleep(15.0)
-		#LOGGER.info('%s',i)
 		t = time.time()
-		#TimeString = datetime.datetime.fromtimestamp(t).strftime('%Y-%m-%d_%H%M%S')
-		#print(TimeString)
+		mutexNodeIP.acquire()
 		names = nodesUPDATETIME.keys()
+		mutexNodeIP.release()
 		for name in names:
+			mutexNodeIP.acquire()
 			lastUpdate = nodesUPDATETIME[name]
+			mutexNodeIP.release()
 			if t - lastUpdate >180:
 				LOGGER.info('Node %s is inactive', name)
-				del nodesUPDATETIME[name]
-				del nodesIP[name]
+				deleteNode(name)
 
-def sockets(data):
+def sockets(name,ip):
 	if data:
 		host = "node1.local"
 		port = 50000
-		#filename ="/home/pi/ECE4564/FinalProj/testCode/webserver/files/node/{1}/"
+		global ArchiveFilePath
+		fileName = ArchiveFilePath + 'nodes/' 
 		try:
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			sock.connect((host,port))
 			data = sock.recv(4096)
-			print data
+			#write data to archive and file stream
+			
 			sock.close()
 		except Exception, local_exception:
 			LOGGER.info("Local error: "+local_exception.message)
@@ -335,41 +333,66 @@ def inRange():
 #		print hour, min
 #		print startTimehr, startTimeMin
 #		print endTimehr, endTimeMin
+		curr = hour*60 + min
+		start = startTimehr*60 + startTimeMin
+		end = endTimehr*60 + endTimeMin
 		if day == testDay:
-			
-			if startTimehr == hour and startTimeMin <= min:
-				if endTimehr == hour and endTimeMin >= min:
-					retVal = True
-					break
-				elif endTimehr > hour:
-					retVal = True
-					break
-			if startTimehr < hour and endTimehr > hour:
+			if start <= curr and curr <= end:
 				retVal = True
-				break
-			if endTimehr == hour and endTimeMin >= min:
-				if startTimehr == hour and startTimeMin <= min:
-					retVal = True
-					break 	
-				elif startTimehr < hour:
-					retVal = True
 					break
 	return retVal
+
+def changeNode(name, ipaddr):
+	mutexNodeIP.acquire()
+	nodesUPDATETIME[name] = time.time()
+	if name in nodesIP:
+		oldIp = nodesIP[name]
+		if oldIp != ipaddr:
+			LOGGER.info('Node %s updated its IP address from %s to %s',name,oldIp,ipaddr)
+			nodesIP[name] = ipaddr
+			deleteThread(name)
+			addThread(name,ipaddr)
+	else:
+		LOGGER.info('New Node detected, name = %s, IP = %s',name, ipaddr)
+		nodesIP[name] = ipaddr
+		addThread(name, ipaddr)
+	mutexNodeIP.release()
+
+def deleteNode(name):
+	mutexNodeIP.acquire()
+	del nodesUPDATETIME[name]
+	del nodesIP[name]
+	deleteThread(name)
+	mutexNodeIP.release()
+
+def addThread(name, ip):
+	mutexNodeThread.acquire()
+	t = threading.Thread(target=sockets, args=(name,ip))
+	t.start()
+	nodesThread[name] = t	
+	mutexNodeThread.release()
+
+def deleteThread(name):
+	mutexNodeThread.acquire()
+	t = nodesThread[name]
+	t.exit()
+	del nodesThread[name] 
+	mutexNodeThread.release()	
 
 def main():
 
 	print "configuring security system"
 	reloadConfig()
 	print "done Configuring"
-#	test = inRange()
-#	if test:
-#		print "inRange"
 	logging.basicConfig(filename = InitialTimeString, level=logging.INFO,format=LOGFORMAT)
+	print "launching AMQP Thread"
 	t1 = threading.Thread(target=asynchAMQP)
 	t1.start()
-#	t2 = threading.Thread(target=timer)
-#	t2.start()
-
+	print "launched"
+	print "launching Timet Thread"
+	t2 = threading.Thread(target=timer)
+	t2.start()
+	print "launched"
 	
 
 if __name__=='__main__':
