@@ -27,14 +27,16 @@ LOGFORMAT= ('%(levelname)s,%(asctime)s,%(funcName)s,%(message)s')
 LOGGER = logging.getLogger(__name__)
 
 nodesIP = {}	
+nodesPORT = {}
 nodesUPDATETIME = {}
 nodesThread = {}
 receivers = []		#list of email recipients
 ArchiveFilePath = ''
+HostIP = ''
 alertTimes = []
 
-mutexNodeIP = Lock()
-mutexNodeThread = Lock()
+mutexNodeIP = threading.Lock()
+mutexNodeThread = threading.Lock()
 
 class AsynchConsumer(object):
 
@@ -162,10 +164,11 @@ class AsynchConsumer(object):
 			print 'Bad Message'
 		else:
 			name = msg[0]
-			ipaddr = msg[1]
-			status = msg[2]
+			ipaddr = msg[1].split(':')[0].strip()
+			port = msg[1].split(':')[1].strip()
+			status = msg[2].srtip()
 			if status == "Online":
-				changeNode(name, ipaddr)	
+				changeNode(name, ipaddr, port)	
 			elif status == "Motion":
 				LOGGER.info('Motion alert received from name = %s',name)
 				#send email alert
@@ -191,7 +194,9 @@ class AsynchConsumer(object):
 					for i in range(len(names)):
 						msg['To'] = formataddr((names[i],receivers[i]))
 					msg['Subject'] = "MOTION ALERT"
-					text = "motion occured at this node: {0}".format(name)
+					text = "motion occured at this node: {0}\n".format(name)
+					global HostIP
+					text = text+"view at: {0}:8080/{1}".format(HostIP,name)
 					body = MIMEText(text,'plain')
 					msg.attach(body)
 					server = smtplib.SMTP('smtp.gmail.com:587')
@@ -271,15 +276,13 @@ def timer():
 				LOGGER.info('Node %s is inactive', name)
 				deleteNode(name)
 
-def sockets(name,ip):
+def sockets(name,ip, port):
 	if data:
-		host = "node1.local"
-		port = 50000
 		global ArchiveFilePath
 		fileName = ArchiveFilePath + 'nodes/' 
 		try:
 			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			sock.connect((host,port))
+			sock.connect((ip,port))
 			data = sock.recv(4096)
 			#write data to archive and file stream
 			
@@ -291,21 +294,18 @@ def sockets(name,ip):
 
 def reloadConfig():
 	configFile = open(configName, 'r')
-	configFile.readline()
+	global HostIP
+	HostIP = configFile.readline().strip().split(':')[1].strip()
+	global ArchiveFilePath
 	ArchiveFilePath = configFile.readline().strip()
 	Times = configFile.readline().split(';')[1].strip().split('+')	
 	configFile.close()
 	
-	#print Times
 	global alertTimes
 	alertTimes=[]
 	for time in Times:
 		time = time[1:-1].split(',')
 		alertTimes.append(time)
-	 
-	#	print time
-	#test = open(os.path.join(ArchiveFilePath,'test.txt'),'w')
-	#test.write('test')
 
 def inRange():
 	#print 'inRangeFunctionCalled'
@@ -336,13 +336,14 @@ def inRange():
 		curr = hour*60 + min
 		start = startTimehr*60 + startTimeMin
 		end = endTimehr*60 + endTimeMin
+#		print curr, start, end
 		if day == testDay:
 			if start <= curr and curr <= end:
 				retVal = True
-					break
+				break
 	return retVal
 
-def changeNode(name, ipaddr):
+def changeNode(name, ipaddr, port):
 	mutexNodeIP.acquire()
 	nodesUPDATETIME[name] = time.time()
 	if name in nodesIP:
@@ -350,24 +351,27 @@ def changeNode(name, ipaddr):
 		if oldIp != ipaddr:
 			LOGGER.info('Node %s updated its IP address from %s to %s',name,oldIp,ipaddr)
 			nodesIP[name] = ipaddr
+			nodesPORT[name] = port
 			deleteThread(name)
-			addThread(name,ipaddr)
+			addThread(name,ipaddr,port)
 	else:
 		LOGGER.info('New Node detected, name = %s, IP = %s',name, ipaddr)
 		nodesIP[name] = ipaddr
-		addThread(name, ipaddr)
+		nodesPORT[name] = port
+		addThread(name, ipaddr, port)
 	mutexNodeIP.release()
 
 def deleteNode(name):
 	mutexNodeIP.acquire()
 	del nodesUPDATETIME[name]
 	del nodesIP[name]
+	del nodesPORT[name]
 	deleteThread(name)
 	mutexNodeIP.release()
 
-def addThread(name, ip):
+def addThread(name, ip, port):
 	mutexNodeThread.acquire()
-	t = threading.Thread(target=sockets, args=(name,ip))
+	t = threading.Thread(target=sockets, args=(name,ip, port))
 	t.start()
 	nodesThread[name] = t	
 	mutexNodeThread.release()
@@ -383,16 +387,16 @@ def main():
 
 	print "configuring security system"
 	reloadConfig()
-	print "done Configuring"
+	print "done Configuring"	
 	logging.basicConfig(filename = InitialTimeString, level=logging.INFO,format=LOGFORMAT)
 	print "launching AMQP Thread"
 	t1 = threading.Thread(target=asynchAMQP)
 	t1.start()
 	print "launched"
-	print "launching Timet Thread"
-	t2 = threading.Thread(target=timer)
-	t2.start()
-	print "launched"
+	#print "launching Timet Thread"
+	#t2 = threading.Thread(target=timer)
+	#t2.start()
+	#print "launched"
 	
 
 if __name__=='__main__':
