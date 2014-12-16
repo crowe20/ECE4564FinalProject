@@ -1,3 +1,5 @@
+#AUTHOR = 'Chris Rowe'
+#Contributions from both Zack Bubb and Robert Garland in the form of paired programming	
 import pika	#INSTALLED LIBRARY 
 import logging 
 import time 
@@ -13,8 +15,8 @@ import subprocess
 from email.mime.multipart import MIMEMultipart 
 from email.mime.text import MIMEText 
 from email.utils import formataddr
-sender = "ece4564finalproj@gmail.com"
-configName = 'exampleConfig.txt'	#configuration file name sender = 'ece4564finalproj@gmail.com' 
+configName = 'config.txt'		#configuration file name 
+sender = 'ece4564finalproj@gmail.com' 	#system Sender address
 senderUserName = 'ece4564finalproj' 
 senderPassword = 'finalproj'
 
@@ -53,6 +55,8 @@ mutexNodeIP = threading.Lock()
 mutexNodeThread = threading.Lock()
 mutexArchive = threading.Lock()
 
+#the Asynchrounous AMQP code was taken from PIKA tutorials online
+#I have added my own behavior to parts of the functions to achieve the system functionality I wanted
 class AsynchConsumer(object):
 
 	EXCHANGENAME = 'msgexchange' #variable
@@ -61,6 +65,7 @@ class AsynchConsumer(object):
 	#ROUTINGKEY
 
 	def __init__(self):
+		#given for the class server
 		self.connection = None
 		self._channel = None
 		self.closing = False
@@ -188,6 +193,8 @@ class AsynchConsumer(object):
 				LOGGER.info('Motion alert received from name = %s',name)
 				archiveTrue(name)
 				#send email alert
+				#email code is a compilation of examples available online
+				#I have modified the contents of the emails to meet the system needs
 				if not inRange():
 					configFile = open(configName,'r')
 					for i in range(3):
@@ -203,8 +210,6 @@ class AsynchConsumer(object):
 							receivers.append(entry[0].strip())
 							names.append(entry[1])
 					configFile.close()
-					#print receivers
-					#print names
 					msg = MIMEMultipart()
 					msg['From'] = formataddr(('SYSTEM ADMINISTRATOR',sender))
 					for i in range(len(names)):
@@ -280,6 +285,7 @@ def asynchAMQP():
 		example.stop()
 
 def timer():
+#THIS FUNCTION WILL KEEP TRACK OF THE ACTIVE NODES AND REMOVE NODES THAT ARE INACTIVE
 	i=0
 	while True:
 		time.sleep(15.0)
@@ -296,6 +302,7 @@ def timer():
 				deleteNode(name)
 
 def sockets(name,ip, port):
+#FUNCTION WILL STREAM VIDEO DATA AND CREATE ARCHIVE FILES
 	global ArchiveFilePath
 	# streamFile needs to be updated with increasing port numbers
 	currPort = 25700+numStreams
@@ -317,7 +324,7 @@ def sockets(name,ip, port):
 		print "done"
 		subprocess.call(command, shell=True)
 		while 1:
-			data = sock.recv(2**15)
+			data = sock.recv(2**20)
 			stream.write(data)
 			if nodesARCHIVE[name]:
 				mutexArchive.acquire()
@@ -332,6 +339,7 @@ def sockets(name,ip, port):
 
 
 def reloadConfig():
+#LOADS THE CONFIGURATION FILE AT STARTUP, subsequent modification require the code to be re-run
 	configFile = open(configName, 'r')
 	global HostIP
 	HostIP = configFile.readline().strip().split(':')[1].strip()
@@ -347,6 +355,7 @@ def reloadConfig():
 		alertTimes.append(time)
 
 def inRange():
+# HELPER FUNCTION TO TEST IF AN EMAIL SHOULD BE SENT
 	#print 'inRangeFunctionCalled'
 	retVal = False
 	day = datetime.datetime.now().strftime('%A').lower()
@@ -382,6 +391,7 @@ def inRange():
 				break
 	return retVal
 
+#THE NEXT FUNCTIONS ARE MUTEX ACCESS FUNCTIONS
 def changeNode(name, ipaddr, port):
 	mutexNodeIP.acquire()
 	nodesUPDATETIME[name] = time.time()
@@ -426,7 +436,7 @@ def addThread(name, ip, port):
 def deleteThread(name):
 	mutexNodeThread.acquire()
 	t = nodesThread[name]
-	t.exit()
+#	t.exit()
 	del nodesThread[name] 
 	mutexNodeThread.release()	
 
@@ -467,11 +477,20 @@ def archiveGet(name):
 	mutexArchive.release()
 	return (toReturn1, toReturn2)
 
+
+def removeOldStreams():
+#CLEAN OUT THE OLD STREAM DATA
+	for file in os.listdir(ArchiveFilePath+"nodes/"):
+		for node in os.listdir(ArchiveFilePath+"nodes/"+file+"/current/"):
+			os.remove(ArchiveFilePath+"nodes/"+file+"/current/"+node)	
 def main():
 
 	print "configuring security system"
 	reloadConfig()
 	print "done Configuring"
+	print "cleaning up old files"
+	removeOldStreams()
+	print "done"
 	logging.basicConfig(filename = ArchiveFilePath+'log.txt', level=logging.INFO,format=LOGFORMAT)
 	print "launching AMQP Thread"
 	t1 = threading.Thread(target=asynchAMQP)
