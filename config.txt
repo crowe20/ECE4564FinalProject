@@ -1,9 +1,6 @@
-#THIS IS THE CONFIGURATION FILE FORMAT
-Path to Archive Video Directory
-NON ALERTING TIMES: [day of the week,start time,end time],[day of the week,start time,end time],....
-Email address1, name
-Email address2, name
-.
-.
-.
-
+ExtIP: 192.168.1.59
+webserver/files/
+NON ALERTING TIMES; [monday,16:43,16:47]+[saturday,20:00,21:59]+[sunday,22:01,23:59]
+crowe20@vt.edu, Chris Rowe
+rowe.chris20@gmail.com, Chris Rowe
+#czauski@g.mail.vt.edu, Tad Czauski, this is Tad's email and we will probably need it for the final demo

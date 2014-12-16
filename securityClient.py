@@ -13,15 +13,14 @@ import subprocess
 from email.mime.multipart import MIMEMultipart 
 from email.mime.text import MIMEText 
 from email.utils import formataddr
-
-configName = 'exampleConfig.txt'	#configuration file name
-sender = 'ece4564finalproj@gmail.com'
-senderUserName = 'ece4564finalproj'
+sender = "ece4564finalproj@gmail.com"
+configName = 'exampleConfig.txt'	#configuration file name sender = 'ece4564finalproj@gmail.com' 
+senderUserName = 'ece4564finalproj' 
 senderPassword = 'finalproj'
 
 #setup log file for current execution
-InitialTime = time.time()
-InitialTimeString = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.log'
+#InitialTime = time.time()
+logName = 'log.txt'
 
 LOGFORMAT= ('%(levelname)s,%(asctime)s,%(funcName)s,%(message)s')
 
@@ -435,8 +434,11 @@ def archiveFalse(name):
 	mutexArchive.acquire()
 	nodesARCHIVE[name] = False
 	try:
+		print "closing ArchiveFile"+str(nodesARCHIVEFILE[name])
 		nodesARCHIVEFILE[name].close()
 	except:
+		print "failed to close file"
+		print traceback.format_exc()
 		pass
 	mutexArchive.release()
 
@@ -444,11 +446,17 @@ def archiveTrue(name):
 	mutexArchive.acquire()
 	nodesARCHIVE[name] = True
 	currTime = time.time()
-	archiveName = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.h264'
+	archiveName = datetime.datetime.fromtimestamp(currTime).strftime('%Y-%m-%d_%H%M%S') +'.h264'
 	archivefileDir = ArchiveFilePath + 'nodes/'+name+'/archive/'
+	print "creating file archiveName"
 	if not os.path.exists(archivefileDir):
 		os.makedirs(archivefileDir)
 	archive = open(archivefileDir+archiveName,'wb')
+	header1 = "\x00\x00\x00\x01\x27\x64\x00\x28\xac\x2b\x40\x50\x1e\xd0\x0f\x12"
+	header2 = "\x26\xa0\x00\x00\x00\x01\x28\xee\x02\x5c\xb0\x00\x00\x00\x01\x25\x88\x80"
+	archive.write(header1)
+	archive.write(header2)
+	print "file made Successfully"
 	nodesARCHIVEFILE[name] = archive
 	mutexArchive.release()
 
@@ -463,8 +471,8 @@ def main():
 
 	print "configuring security system"
 	reloadConfig()
-	print "done Configuring"	
-	logging.basicConfig(filename = InitialTimeString, level=logging.INFO,format=LOGFORMAT)
+	print "done Configuring"
+	logging.basicConfig(filename = ArchiveFilePath+'log.txt', level=logging.INFO,format=LOGFORMAT)
 	print "launching AMQP Thread"
 	t1 = threading.Thread(target=asynchAMQP)
 	t1.start()
