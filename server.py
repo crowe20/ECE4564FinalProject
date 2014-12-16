@@ -98,9 +98,8 @@ class HomePage(Resource):
         getNodeList()
         for file in node_list:
             body+= "<a href="+request.uri+file+">"+file+ "</a><br/>"
-
+        body+= "<a href='/emailAdd'>Add Email To Alert</a><br/>"
         page =  '<html><body>Index Page<br/>%s' % (body,)
-        #old += '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="'+test_host+test_port+test_file+'"/>' \
         page += '</body></html>'
 
         return page
@@ -136,7 +135,7 @@ class NodePage(Resource):
 
 
         global logscript
-        logLocation = base_path+"log.txt"
+        logLocation = base_path+"nodes/log.txt"
         body =  '<html>'+logscript % (logLocation,)+'<body>'
         body += table % (name, archiveList, videoContent, "log",)
         body += '</body></html>'
@@ -158,6 +157,25 @@ class NodeArchivePage(Resource):
         old+=        '</body></html>'
         return old
 
+class EmailPage(Resource):
+    isLeaf = True
+    def render_GET(self, request):
+        if "?" in request.uri:
+            email = request.uri[request.uri.index("email=")+6:request.uri.index("&")]
+            name = request.uri[request.uri.index("name=")+5:]
+            email = email.replace("%40", "@")
+            name = name.replace("+", " ")
+            file = open("config.txt","a")
+            file.write("\r\n"+email+", "+name)
+
+        body = ""
+        body += '<a href="/">Home</a><br/>'
+        body += "<form>Email:<br><input type='text' name='email'><br>Name:<br><input type='text' name='name'><br><input type='submit' value='Submit'></form>"
+        old = '<html><body><br/>%s' % (body,)
+
+        old+= '</body></html>'
+        return old
+
 class BasePage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -177,6 +195,9 @@ class BasePage(Resource):
         elif "ImagePage/" in request.uri:
             print "ImgPage"
             return ImgPage().render_GET(request)
+        elif "/emailAdd" in request.uri:
+            print "EmailPage"
+            return EmailPage().render_GET(request)
         elif request.uri == "/clock":
             print "ClockPage"
             return ClockPage().render_GET(request)
