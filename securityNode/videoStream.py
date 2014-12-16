@@ -1,3 +1,15 @@
+##################################################################
+#
+#A socket server that binds and listens for connections on a
+#specified port.
+#
+#Once connection is made, the pi camera will begin recording for
+#an infinite amount of time, sending its output to to the client
+#pi for streaming and storage.
+#
+#################################################################
+
+
 import socket
 import time
 import picamera
@@ -19,5 +31,6 @@ with picamera.PiCamera() as camera:
 
     camera.start_recording(connection, format='h264')
 
+    #record infinitely while still remaining gracefulness
     while 1:
         camera.wait_recording(60)

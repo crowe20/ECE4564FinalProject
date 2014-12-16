@@ -21,7 +21,9 @@ channel = msg_broker.channel()
 channel.exchange_declare(exchange="msgexchange",
                          type="fanout")
 
-#publish a health message
+#publish a health message specific to this node
+#contains IP address of node as well as an arbitrary socket
+#that its video server is listening on
 channel.basic_publish(exchange="msgexchange",
                       routing_key='',
                       body="Node1,192.168.1.61:12894,Online")

@@ -3,6 +3,9 @@
 #Constantly poll a gpio pin, waiting for it to go high.
 #When it does, send a message via amqp saying motion is detected
 #
+#After 20 seconds of no motion, send a message via amqp saying that
+#there is no longer any motion in the room
+#
 ##########################################################################
 
 import pika
@@ -14,13 +17,15 @@ sensorPin = 23 #gpio pin on pi to poll
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(sensorPin, GPIO.IN)
 
+#initial declarations
 currState = False
-
 prev = False
+
+#cycle counters
 motion = 0
 still = 0
 
-time.sleep(5) #let motion detector stabalize
+time.sleep(60) #let motion detector stabalize and server get running
 
 #connect to the message broker and login
 msg_broker = pika.BlockingConnection(
@@ -39,24 +44,22 @@ channel.exchange_declare(exchange="msgexchange",
 try:
     while True:
         time.sleep(2)
-        currState = GPIO.input(sensorPin)
-        if currState:
-            motion += 1
-            still = 0
+        currState = GPIO.input(sensorPin) #read pin
+        if currState:     		  #motion has been detected
+            motion += 1   		  #increment motion cycle counter
+            still = 0     		  #reset still cycle counter
         else:
-            still += 1
-            motion = 0
-        if motion == 1 and not prev:
+            still += 1    		  #increment still cycle counter
+            motion = 0    		  #reset motion cycle counter
+        if motion == 1 and not prev:      #publish single motion message
             channel.basic_publish(exchange="msgexchange",
                           routing_key='',
                           body="Node1,192.168.1.61:12894,Motion")
-            print "Started"
             prev = True
-        if still == 10 and prev:
+        if still == 10 and prev:         #publish stop method
             channel.basic_publish(exchange="msgexchange",
                           routing_key='',
                           body="Node1,192.168.1.61:12894,Stop")
-            print "Stopped"
             prev = False
 finally:
     #close broker and exit
