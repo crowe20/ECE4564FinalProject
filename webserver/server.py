@@ -10,9 +10,9 @@ import os
 
 base_path = "files"
 
-test_host = "rtsp://localhost:"
-test_port = "25700"
-test_file = "/stream25700.h264"
+test_host = "rtsp://192.168.1.59:"
+test_port = "25701"
+test_file = "/stream25701.h264"
 
 class ClockPage(Resource):
     isLeaf = True

@@ -1,6 +1,6 @@
 ExtIP: 71.62.125.147
 webserver/files/
-NON ALERTING TIMES; [monday,23:02,23:59]+[saturday,20:00,21:59]+[sunday,22:01,23:59]
+NON ALERTING TIMES; [monday,16:43,16:47]+[saturday,20:00,21:59]+[sunday,22:01,23:59]
 crowe20@vt.edu, Chris Rowe
 rowe.chris20@gmail.com, Chris Rowe
 #czauski@g.mail.vt.edu, Tad Czauski, this is Tad's email and we will probably need it for the final demo
