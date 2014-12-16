@@ -1,0 +1,28 @@
+INFO,2014-12-16 00:45:37,842,connect,Connecting to netapps.ece.vt.edu
+INFO,2014-12-16 00:45:37,896,_create_and_connect_to_socket,Connecting to 128.173.88.180:5672
+INFO,2014-12-16 00:45:37,995,erase_credentials,Erasing stored credential values
+INFO,2014-12-16 00:45:38,098,on_connection_open,Connection Opened
+INFO,2014-12-16 00:45:38,100,add_on_connection_close_callback,Adding connection close callback
+INFO,2014-12-16 00:45:38,102,open_channel,Creating New Channel
+INFO,2014-12-16 00:45:38,157,on_channel_open,Channel opened
+INFO,2014-12-16 00:45:38,159,add_on_channel_close_callback,Adding channel close callback
+INFO,2014-12-16 00:45:38,162,setup_exchange,Declaring exchange msgexchange
+INFO,2014-12-16 00:45:38,262,on_exchange_declareok,Exchange Declared
+INFO,2014-12-16 00:45:38,264,setup_queue,Declaring Queue messages
+INFO,2014-12-16 00:45:38,363,on_queue_declareok,Binding msgexchange to messages
+INFO,2014-12-16 00:45:38,567,on_bindok,Queue bound
+INFO,2014-12-16 00:45:38,569,start_consuming,Issuing consumer related RPC commands
+INFO,2014-12-16 00:47:03,251,on_message,Received message # 1 from None: Node1,192.168.1.61:12894,Online
+INFO,2014-12-16 00:47:03,253,changeNode,New Node detected, name = Node1, IP = 192.168.1.61
+INFO,2014-12-16 00:47:03,258,acknowledge_message,Acknowledge message 1
+INFO,2014-12-16 00:47:33,496,on_message,Received message # 2 from None: Node1,192.168.1.61:12894,Motion
+INFO,2014-12-16 00:47:33,498,on_message,Motion alert received from name = Node1
+INFO,2014-12-16 00:47:35,870,acknowledge_message,Acknowledge message 2
+INFO,2014-12-16 00:48:03,144,on_message,Received message # 3 from None: Node1,192.168.1.61:12894,Online
+INFO,2014-12-16 00:48:03,146,acknowledge_message,Acknowledge message 3
+INFO,2014-12-16 00:48:09,544,on_message,Received message # 4 from None: Node1,192.168.1.61:12894,Stop
+INFO,2014-12-16 00:48:09,546,acknowledge_message,Acknowledge message 4
+INFO,2014-12-16 00:49:02,798,on_message,Received message # 5 from None: Node1,192.168.1.61:12894,Online
+INFO,2014-12-16 00:49:02,800,acknowledge_message,Acknowledge message 5
+INFO,2014-12-16 00:50:03,418,on_message,Received message # 6 from None: Node1,192.168.1.61:12894,Online
+INFO,2014-12-16 00:50:03,420,acknowledge_message,Acknowledge message 6
