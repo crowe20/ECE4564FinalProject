@@ -8,7 +8,8 @@ import sys
 import readline
 import smtplib
 import os
-
+import traceback
+import subprocess
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -26,23 +27,33 @@ LOGFORMAT= ('%(levelname)s,%(asctime)s,%(funcName)s,%(message)s')
 
 LOGGER = logging.getLogger(__name__)
 
+global nodesIP
 nodesIP = {}	
+global nodesPORT
 nodesPORT = {}
+global nodesUPDATETIME
 nodesUPDATETIME = {}
+global nodesThread
 nodesThread = {}
-receivers = []		#list of email recipients
+global receivers		#list of email recipients
+receivers =[]
+global ArchiveFilePath
 ArchiveFilePath = ''
+global HostIP
 HostIP = ''
+global alertTimes
 alertTimes = []
+global numStreams
+numStreams = 0
 
 mutexNodeIP = threading.Lock()
 mutexNodeThread = threading.Lock()
 
 class AsynchConsumer(object):
 
-	EXCHANGENAME = 'chat_room' #variable
+	EXCHANGENAME = 'msgexchange' #variable
 	EXCHANGETYPE = 'fanout'
-	QUEUENAME = 'text' 	#variable
+	QUEUENAME = 'messages' 	#variable
 	#ROUTINGKEY
 
 	def __init__(self):
@@ -51,9 +62,9 @@ class AsynchConsumer(object):
 		self.closing = False
 		self.ConsumerTag = None
 		self.host = 'netapps.ece.vt.edu'
-		self.virtualhost = 'sandbox'
-		self.user = 'ECE4564-Fall2014'
-		self.password = '13ac0N!'
+		self.virtualhost = '/2014/fall/observer'
+		self.user = 'observer'
+		self.password = 'N1ght|visi0N44'
 	def connect(self):
 		LOGGER.info('Connecting to %s',self.host)	
 		return pika.SelectConnection(pika.ConnectionParameters(host=self.host,
@@ -166,7 +177,7 @@ class AsynchConsumer(object):
 			name = msg[0]
 			ipaddr = msg[1].split(':')[0].strip()
 			port = msg[1].split(':')[1].strip()
-			status = msg[2].srtip()
+			status = msg[2].strip()
 			if status == "Online":
 				changeNode(name, ipaddr, port)	
 			elif status == "Motion":
@@ -204,6 +215,9 @@ class AsynchConsumer(object):
 					server.login(senderUserName,senderPassword)
 					server.sendmail(sender, receivers, msg.as_string())
 					server.quit()
+			elif status == 'Stop':
+				#FLIP A FLAG
+				pass
 
 		self.acknowledge_message(basic_deliver.delivery_tag)
 	
@@ -277,19 +291,40 @@ def timer():
 				deleteNode(name)
 
 def sockets(name,ip, port):
-	if data:
-		global ArchiveFilePath
-		fileName = ArchiveFilePath + 'nodes/' 
-		try:
-			sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			sock.connect((ip,port))
-			data = sock.recv(4096)
-			#write data to archive and file stream
-			
-			sock.close()
-		except Exception, local_exception:
-			LOGGER.info("Local error: "+local_exception.message)
-			print "Local error: "+local_exception.message
+	global ArchiveFilePath
+	#currTime = time.time()
+	#archiveName = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.h264'
+	#archivefileName = ArchiveFilePath + 'nodes/'+name+'/archive/'+archiveName
+	# streamFile needs to be updated with increasing port numbers
+	currPort = 25700+numStreams
+	streamDir = ArchiveFilePath+'nodes/'+name+'/current'
+	streamFile = ArchiveFilePath+'nodes/'+name+'/current/stream'+str(currPort)+'.h264'
+	name = "stream"+str(currPort)+'.h264'
+	if not os.path.exists(streamDir):
+		os.makedirs(streamDir)
+	stream = open(streamFile,'wb')
+	command = "vlc --intf dummy %s :sout=#rtp{sdp=rtsp://:%s/%s} vlc://quit &"%(streamFile, currPort,name)
+	print command
+	#subprocess.call(command, shell=True)
+	try:
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.connect((ip,int(port)))
+		print "starting"
+		while os.stat(streamFile).st_size < (2**21):
+			data = sock.recv(2**21)
+			stream.write(data)
+		print "done"
+		test = subprocess.check_output(command, shell=True)
+		print test
+		while 1:
+			data = sock.recv(2**15)
+			stream.write(data)
+		
+		sock.close()
+	except Exception, local_exception:
+		LOGGER.info("Local error: "+local_exception.message)
+		print "Local error: "+local_exception.message
+		print traceback.format_exc()
 
 
 def reloadConfig():
@@ -353,12 +388,16 @@ def changeNode(name, ipaddr, port):
 			nodesIP[name] = ipaddr
 			nodesPORT[name] = port
 			deleteThread(name)
+			global numStreams
 			addThread(name,ipaddr,port)
+			numStreams = numStreams+1
 	else:
 		LOGGER.info('New Node detected, name = %s, IP = %s',name, ipaddr)
 		nodesIP[name] = ipaddr
 		nodesPORT[name] = port
+		global numStreams
 		addThread(name, ipaddr, port)
+		numStreams = numStreams+1
 	mutexNodeIP.release()
 
 def deleteNode(name):
