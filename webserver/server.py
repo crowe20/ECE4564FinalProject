@@ -8,6 +8,9 @@ import os
 
 # http://twistedmatrix.com/documents/current/web/howto/web-in-60/dynamic-content.html
 
+
+
+
 base_path = "files"
 host_ip = "localhost"
 node_list = None
@@ -16,7 +19,23 @@ test_host = "rtsp://192.168.1.59:"
 test_port = "25701"
 test_file = "/stream25701.h264"
 
-
+logscript = "<head><script src='jquery.js'></script>\n"\
+            "<script type='text/javascript'>\n" \
+                "function setTimeout() {\n" \
+                    "refreshLog();\n"\
+                    "setInterval(function () { refreshLog() }, 5000);\n"\
+                    "   }\n"\
+                "function refreshLog() {\n" \
+                    "console.log('Refreshing Log');\n"\
+                    "xmlhttp = new XMLHttpRequest();\n"\
+                    "xmlhttp.open('GET', '%s', true);\n"\
+                    "xmlhttp.send();\n"\
+                    "xmlhttp.onreadystatechange = function() {  \n" \
+                        "if (xmlhttp.readyState== 4 && xmlhttp.status == 200){\n" \
+                            "document.getElementById('log').innerHTML = xmlhttp.responseText;}}\n"\
+                "}\n"\
+                "window.onload = setTimeout;\n"\
+            "</script></head>\n"\
 
 def updateGlobalVars():
     file = open("config.txt","r")
@@ -29,10 +48,8 @@ def updateGlobalVars():
     return base_path
 
 def getNodeList():
-    print "Getting node list"
     global node_list
     node_list =  os.listdir(base_path+"nodes/")
-    print "Done"
 
 def getPort(fileName):
     return "25700"
@@ -96,7 +113,7 @@ class NodePage(Resource):
                 '<tr align="center"><td>Archived Videos</td><td>Live Stream</td><td>Log Output</td></tr><tr>'\
                 '<td width="25%%">%s</td>' \
                 '<td width="50%%" align="center">%s</td>' \
-                '<td width="25%%">%s</td>' \
+                '<td width="25%%" id="log">%s</td>' \
                 '</tr><th colspan="3"><a href="/">Home</a></th></table>'
 
         archiveList = ""
@@ -118,7 +135,9 @@ class NodePage(Resource):
             print "Failed to get livestream"
 
 
-        body =  '<html><body>'
+        global logscript
+        logLocation = base_path+"nodes/"+name+"/log.txt"
+        body =  '<html>'+logscript % (logLocation,)+'<body>'
         body += table % (name, archiveList, videoContent, "log",)
         body += '</body></html>'
         return body
@@ -131,11 +150,12 @@ class NodeArchivePage(Resource):
         body += '<a href="/">home</a><br/>'
         body += "Archived Video: "+video+"<br/>"
         body+= '<a href=/'+name+'>Node Home</a><br/>'
-
         old =  '<html><body>Node: %s<br/>%s' % (name, body, )
-        #old += '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="'+test_host+test_port+test_file+'"/>' \
+
+        vidLocation = "/"+base_path+"nodes/"+name+"/"+video+".h264"
+        print vidLocation
+        old += '<embed type="application/x-vlc-plugin" name="VLC" autoplay="yes" loop="no" volume="100" width="640" height="480" target="%s"/>' % (vidLocation,)
         old+=        '</body></html>'
-        print "NodePage done"
         return old
 
 class BasePage(Resource):
@@ -162,8 +182,7 @@ class BasePage(Resource):
             return ClockPage().render_GET(request)
         else:
             print "FilePage"
-            print request.uri
-            return static.File("files/test3.ogg").render_GET(request)
+            return static.File(request.uri[1:]).render_GET(request)
 
 def server_main():
     updateGlobalVars()
@@ -172,6 +191,7 @@ def server_main():
     resource.putChild("files", static.File("files"))
     factory = Site(resource)
     reactor.listenTCP(8080, factory)
+    print "Starting Server"
     reactor.run()
 
 
