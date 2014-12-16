@@ -135,7 +135,7 @@ class NodePage(Resource):
 
 
         global logscript
-        logLocation = base_path+"nodes/log.txt"
+        logLocation = base_path+"log.txt"
         body =  '<html>'+logscript % (logLocation,)+'<body>'
         body += table % (name, archiveList, videoContent, "log",)
         body += '</body></html>'
