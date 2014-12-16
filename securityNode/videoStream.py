@@ -3,11 +3,13 @@ import time
 import picamera
 
 host = ''
-port = 50000
+port = 12894
 
 with picamera.PiCamera() as camera:
     camera.resolution = (640, 480)
     camera.framerate = 24
+    camera.vflip = True
+    camera.hflip = True
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((host,port))
@@ -15,11 +17,18 @@ with picamera.PiCamera() as camera:
 
     connection = sock.accept()[0].makefile('wb')
 
+    camera.start_recording(connection, format='h264')
+
+    while 1:
+        camera.wait_recording(60)
+
+    """
     try:
         camera.start_recording(connection, format='h264')
-        camera.wait_recording(10)
+        camera.wait_recording(6000)
         camera.stop_recording()
     finally:
         connection.close()
         sock.close()
-        camera.close() #get rid of if causing problems
+        camera.close()
+    """
