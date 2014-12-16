@@ -1,4 +1,4 @@
-ExtIP: 71.62.125.147
+ExtIP: 192.168.1.59
 webserver/files/
 NON ALERTING TIMES; [monday,16:43,16:47]+[saturday,20:00,21:59]+[sunday,22:01,23:59]
 crowe20@vt.edu, Chris Rowe

@@ -1,17 +1,17 @@
-import pika	#INSTALLED LIBRARY
-import logging
-import time
-import threading
-import datetime
-import socket
-import sys
-import readline
-import smtplib
-import os
-import traceback
-import subprocess
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import pika	#INSTALLED LIBRARY 
+import logging 
+import time 
+import threading 
+import datetime 
+import socket 
+import sys 
+import readline 
+import smtplib 
+import os 
+import traceback 
+import subprocess 
+from email.mime.multipart import MIMEMultipart 
+from email.mime.text import MIMEText 
 from email.utils import formataddr
 
 configName = 'exampleConfig.txt'	#configuration file name
@@ -33,6 +33,10 @@ global nodesPORT
 nodesPORT = {}
 global nodesUPDATETIME
 nodesUPDATETIME = {}
+global nodesARCHIVE
+nodesARCHIVE = {}
+global nodesARCHIVEFILE
+nodesARCHIVEFILE = {}
 global nodesThread
 nodesThread = {}
 global receivers		#list of email recipients
@@ -48,6 +52,7 @@ numStreams = 0
 
 mutexNodeIP = threading.Lock()
 mutexNodeThread = threading.Lock()
+mutexArchive = threading.Lock()
 
 class AsynchConsumer(object):
 
@@ -182,6 +187,7 @@ class AsynchConsumer(object):
 				changeNode(name, ipaddr, port)	
 			elif status == "Motion":
 				LOGGER.info('Motion alert received from name = %s',name)
+				archiveTrue(name)
 				#send email alert
 				if not inRange():
 					configFile = open(configName,'r')
@@ -215,9 +221,9 @@ class AsynchConsumer(object):
 					server.login(senderUserName,senderPassword)
 					server.sendmail(sender, receivers, msg.as_string())
 					server.quit()
+				
 			elif status == 'Stop':
-				#FLIP A FLAG
-				pass
+				archiveFalse(name)
 
 		self.acknowledge_message(basic_deliver.delivery_tag)
 	
@@ -292,19 +298,15 @@ def timer():
 
 def sockets(name,ip, port):
 	global ArchiveFilePath
-	#currTime = time.time()
-	#archiveName = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.h264'
-	#archivefileName = ArchiveFilePath + 'nodes/'+name+'/archive/'+archiveName
 	# streamFile needs to be updated with increasing port numbers
 	currPort = 25700+numStreams
 	streamDir = ArchiveFilePath+'nodes/'+name+'/current'
 	streamFile = ArchiveFilePath+'nodes/'+name+'/current/stream'+str(currPort)+'.h264'
-	name = "stream"+str(currPort)+'.h264'
+	streamName = "stream"+str(currPort)+'.h264'
 	if not os.path.exists(streamDir):
 		os.makedirs(streamDir)
 	stream = open(streamFile,'wb')
-	command = "vlc --intf dummy %s :sout=#rtp{sdp=rtsp://:%s/%s} vlc://quit &"%(streamFile, currPort,name)
-	print command
+	command = "vlc --intf dummy %s :sout=#rtp{sdp=rtsp://:%s/%s} vlc://quit &"%(streamFile, currPort,streamName)
 	#subprocess.call(command, shell=True)
 	try:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -314,12 +316,15 @@ def sockets(name,ip, port):
 			data = sock.recv(2**21)
 			stream.write(data)
 		print "done"
-		test = subprocess.check_output(command, shell=True)
-		print test
+		subprocess.call(command, shell=True)
 		while 1:
 			data = sock.recv(2**15)
 			stream.write(data)
-		
+			if nodesARCHIVE[name]:
+				mutexArchive.acquire()
+				nodesARCHIVEFILE[name].write(data)
+				mutexArchive.release()
+
 		sock.close()
 	except Exception, local_exception:
 		LOGGER.info("Local error: "+local_exception.message)
@@ -391,6 +396,8 @@ def changeNode(name, ipaddr, port):
 			global numStreams
 			addThread(name,ipaddr,port)
 			numStreams = numStreams+1
+			archiveFalse(name)
+
 	else:
 		LOGGER.info('New Node detected, name = %s, IP = %s',name, ipaddr)
 		nodesIP[name] = ipaddr
@@ -398,6 +405,8 @@ def changeNode(name, ipaddr, port):
 		global numStreams
 		addThread(name, ipaddr, port)
 		numStreams = numStreams+1
+		archiveFalse(name)
+
 	mutexNodeIP.release()
 
 def deleteNode(name):
@@ -422,6 +431,34 @@ def deleteThread(name):
 	del nodesThread[name] 
 	mutexNodeThread.release()	
 
+def archiveFalse(name):
+	mutexArchive.acquire()
+	nodesARCHIVE[name] = False
+	try:
+		nodesARCHIVEFILE[name].close()
+	except:
+		pass
+	mutexArchive.release()
+
+def archiveTrue(name):
+	mutexArchive.acquire()
+	nodesARCHIVE[name] = True
+	currTime = time.time()
+	archiveName = datetime.datetime.fromtimestamp(InitialTime).strftime('%Y-%m-%d_%H%M%S') +'.h264'
+	archivefileDir = ArchiveFilePath + 'nodes/'+name+'/archive/'
+	if not os.path.exists(archivefileDir):
+		os.makedirs(archivefileDir)
+	archive = open(archivefileDir+archiveName,'wb')
+	nodesARCHIVEFILE[name] = archive
+	mutexArchive.release()
+
+def archiveGet(name):
+	mutexArchive.acquire()
+	toReturn1 = nodesARCHIVE[name]
+	toReturn2 = nodesARCHIVEFILE[name]
+	mutexArchive.release()
+	return (toReturn1, toReturn2)
+
 def main():
 
 	print "configuring security system"
@@ -432,10 +469,10 @@ def main():
 	t1 = threading.Thread(target=asynchAMQP)
 	t1.start()
 	print "launched"
-	#print "launching Timet Thread"
-	#t2 = threading.Thread(target=timer)
-	#t2.start()
-	#print "launched"
+	print "launching Timet Thread"
+	t2 = threading.Thread(target=timer)
+	t2.start()
+	print "launched"
 	
 
 if __name__=='__main__':
