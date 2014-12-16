@@ -6,19 +6,17 @@ from twisted.web.resource import Resource
 import time
 import os
 
+# Base code example from 
 # http://twistedmatrix.com/documents/current/web/howto/web-in-60/dynamic-content.html
 
 
 
-
+# global params
 base_path = "files"
 host_ip = "localhost"
 node_list = None
 
-test_host = "rtsp://localhost:"
-test_port = "25700"
-test_file = "/stream25700.h264"
-
+# javascript/jquery function to get and update the log
 logscript = "<head><script src='jquery.js'></script>\n"\
             "<script type='text/javascript'>\n" \
                 "function setTimeout() {\n" \
@@ -37,40 +35,24 @@ logscript = "<head><script src='jquery.js'></script>\n"\
                 "window.onload = setTimeout;\n"\
             "</script></head>\n"\
 
+# Read config and update globals
 def updateGlobalVars():
     file = open("config.txt","r")
     global base_path
     global host_ip
     host_ip = file.readline().split(":")[1].strip()
+    print host_ip
     base_path = file.readline().strip()
     file.close()
     getNodeList()
     return base_path
 
+#Get list of all nodes
 def getNodeList():
     global node_list
     node_list =  os.listdir(base_path+"nodes/")
 
-def getPort(fileName):
-    return "25700"
-
-def getArchiveList(path):
-    return ""
-
-class ClockPage(Resource):
-    isLeaf = True
-    def render_GET(self, request):
-        print request.uri
-        return "<html><body>%s</body></html>" % (time.ctime(),)
-
-class ImgPage(Resource):
-    isLeaf = True
-    def render_GET(self, request):
-        print base_path+request.uri
-        #find image
-        image = "files/cat1.jpg"
-        return '<html><body>Image Page<br/><img src="/%s"/></body></html>' % (image,)
-
+# directory page - was used for testing
 class FileListPage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -91,6 +73,7 @@ class FileListPage(Resource):
 
         return old
 
+#base page at "/" has available nodes and email links
 class HomePage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -104,6 +87,7 @@ class HomePage(Resource):
 
         return page
 
+#Page for each node, shows archived file, live stream and log output
 class NodePage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -141,6 +125,7 @@ class NodePage(Resource):
         body += '</body></html>'
         return body
 
+#show the archived video
 class NodeArchivePage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -157,6 +142,7 @@ class NodeArchivePage(Resource):
         old+=        '</body></html>'
         return old
 
+#Allow the user to add in new emails to config file
 class EmailPage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -166,7 +152,7 @@ class EmailPage(Resource):
             email = email.replace("%40", "@")
             name = name.replace("+", " ")
             file = open("config.txt","a")
-            file.write("\r\n"+email+", "+name)
+            file.write(email+", "+name)
 
         body = ""
         body += '<a href="/">Home</a><br/>'
@@ -176,6 +162,7 @@ class EmailPage(Resource):
         old+= '</body></html>'
         return old
 
+#Default, chooses what page to draw
 class BasePage(Resource):
     isLeaf = True
     def render_GET(self, request):
@@ -192,15 +179,9 @@ class BasePage(Resource):
         elif os.path.isdir(base_path+request.uri):
             print "FileListPage"
             return FileListPage().render_GET(request)
-        elif "ImagePage/" in request.uri:
-            print "ImgPage"
-            return ImgPage().render_GET(request)
         elif "/emailAdd" in request.uri:
             print "EmailPage"
             return EmailPage().render_GET(request)
-        elif request.uri == "/clock":
-            print "ClockPage"
-            return ClockPage().render_GET(request)
         else:
             print "FilePage"
             return static.File(request.uri[1:]).render_GET(request)
