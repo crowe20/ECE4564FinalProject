@@ -21,14 +21,3 @@ with picamera.PiCamera() as camera:
 
     while 1:
         camera.wait_recording(60)
-
-    """
-    try:
-        camera.start_recording(connection, format='h264')
-        camera.wait_recording(6000)
-        camera.stop_recording()
-    finally:
-        connection.close()
-        sock.close()
-        camera.close()
-    """
